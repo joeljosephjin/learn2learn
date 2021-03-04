@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 
+# ??
 import traceback
+# used to extract grad from loss w.r.t something else
 from torch.autograd import grad
 
+# contains nothing much; just skeleton
 from learn2learn.algorithms.base_learner import BaseLearner
+# ??
 from learn2learn.utils import clone_module, update_module
 
 
+# not used in practice ig; used IN some other function
+# what it does is: p.update = -lr * g; update_module(model)
 def maml_update(model, lr, grads=None):
     """
     [[Source]](https://github.com/learnables/learn2learn/blob/master/learn2learn/algorithms/maml.py)
@@ -35,7 +41,9 @@ def maml_update(model, lr, grads=None):
     maml_update(model, lr=0.1, grads)
     ~~~
     """
+    # if there is no grads then no need to do anything
     if grads is not None:
+        # 
         params = list(model.parameters())
         if not len(grads) == len(list(params)):
             msg = 'WARNING:maml_update(): Parameters and gradients have different length. ('
@@ -88,6 +96,7 @@ class MAML(BaseLearner):
     ~~~
     """
 
+    # inits a few flags
     def __init__(self,
                  model,
                  lr,
@@ -103,9 +112,11 @@ class MAML(BaseLearner):
             allow_unused = allow_nograd
         self.allow_unused = allow_unused
 
+    # does normal model(x)
     def forward(self, *args, **kwargs):
         return self.module(*args, **kwargs)
 
+    # adapt(loss) -> does inner_update; do maml_update(model, lr, gradients); gradients <- grad(loss, model.parameters())
     def adapt(self,
               loss,
               first_order=None,
@@ -127,6 +138,7 @@ class MAML(BaseLearner):
             parameters that have `requires_grad = False`. Defaults to self.allow_nograd.
 
         """
+        # some flags stuff
         if first_order is None:
             first_order = self.first_order
         if allow_unused is None:
@@ -135,9 +147,11 @@ class MAML(BaseLearner):
             allow_nograd = self.allow_nograd
         second_order = not first_order
 
+        # allow adaptation with parameters that have `requires_grad = False`
         if allow_nograd:
-            # Compute relevant gradients
+            # get list of diff-pable params
             diff_params = [p for p in self.module.parameters() if p.requires_grad]
+            # get grads of them
             grad_params = grad(loss,
                                diff_params,
                                retain_graph=second_order,
@@ -146,11 +160,13 @@ class MAML(BaseLearner):
             gradients = []
             grad_counter = 0
 
-            # Handles gradients for non-differentiable parameters
+            # gradients <- grad_params
             for param in self.module.parameters():
+                # get grads for those who have it
                 if param.requires_grad:
                     gradient = grad_params[grad_counter]
                     grad_counter += 1
+                # if no grad, put it as None
                 else:
                     gradient = None
                 gradients.append(gradient)
